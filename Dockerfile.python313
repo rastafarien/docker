@@ -1,0 +1,31 @@
+# --- Stage 1: Compilation ---
+FROM debian:bookworm-slim AS builder
+
+RUN apt-get update && apt-get install -y \
+    build-essential libssl-dev zlib1g-dev libncurses5-dev libgdbm-dev \
+    libnss3-dev libsqlite3-dev libreadline-dev libffi-dev curl libbz2-dev xz-utils
+
+WORKDIR /src
+RUN curl -O https://www.python.org/ftp/python/3.13.9/Python-3.13.9.tar.xz && \
+    tar -xf Python-3.13.9.tar.xz
+
+WORKDIR /src/Python-3.13.9
+# On active les optimisations car le runner cloud est très rapide
+RUN ./configure --prefix=/opt/python313 --enable-shared --enable-optimizations --with-lto
+RUN make -j$(nproc) && make install
+
+# --- Stage 2: Image Finale ---
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 libsqlite3-0 bzip2 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# On récupère le dossier compilé proprement
+COPY --from=builder /opt/python313 /opt/python313
+
+# Configuration pour que le système trouve Python et ses libs
+ENV PATH="/opt/python313/bin:$PATH"
+RUN echo "/opt/python313/lib" > /etc/ld.so.conf.d/python313.conf && ldconfig
+
+CMD ["python3.13"]
