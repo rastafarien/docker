@@ -1,4 +1,4 @@
-name: Build Native ARM64
+name: Build ARM64 (Compatible Mode)
 
 on:
   push:
@@ -6,12 +6,14 @@ on:
 
 jobs:
   build:
-    # On utilise la puissance des serveurs ARM de GitHub
-    runs-on: ubuntu-24.04-arm64 
-
+    runs-on: ubuntu-latest # Disponible instantanément
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        # Cette étape est vitale pour compiler de l'ARM sur du Intel
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -28,6 +30,7 @@ jobs:
           context: .
           file: ./Dockerfile.python313
           push: true
+          platforms: linux/arm64
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/python-compiled:3.13.9
           cache-from: type=gha
           cache-to: type=gha,mode=max
